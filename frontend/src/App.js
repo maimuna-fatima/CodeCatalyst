@@ -13,6 +13,11 @@ import Test from "./components/Test";
 import Comment from "./components/Comment";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import CreateWorkspace from "./components/CreateWorkspace";
+import WorkspaceDetail from "./components/WorkspaceDetail";
+import WorkspaceFiles from "./components/WorkspaceFiles";
+import WorkspaceExplain from "./components/WorkspaceExplain";
+import WorkspaceDocs from "./components/WorkspaceDocs";
 
 function App() {
   return (
@@ -32,6 +37,12 @@ function App() {
           <Route path="/review" element={<Review />} />
           <Route path="/test" element={<Test />} />
           <Route path="/comment" element={<Comment />} />
+          <Route path="/create-workspace" element={<CreateWorkspace />} />
+          <Route path="/workspace/:workspaceId" element={<WorkspaceDetail />} />
+          <Route path="/workspace/:workspaceId/files" element={<WorkspaceFiles />} />
+          <Route path="/workspace/:workspaceId/explain" element={<WorkspaceExplain />} />
+          <Route path="/workspace/:workspaceId/docs" element={<WorkspaceDocs />} />
+
 
         </Routes>
       </Router>

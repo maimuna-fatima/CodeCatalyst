@@ -9,7 +9,10 @@ import re
 import subprocess
 import tempfile
 import uuid
-
+from pydantic import BaseModel
+from firebase_config import db
+from datetime import datetime
+import requests
 
 load_dotenv()
 
@@ -43,7 +46,8 @@ SUPPORTED_LANGUAGES = [
     "php",
     "ruby",
     "swift",
-    "kotlin"
+    "kotlin",
+    "sql"
 ]
 
 
@@ -70,10 +74,6 @@ class RewriteRequest(BaseModel):
     code: str
     language: str
 
-class MetricsRequest(BaseModel):
-    code: str
-    language: str
-
 class ConvertRequest(BaseModel):
     code: str
     source_language: str
@@ -91,6 +91,169 @@ class RunRequest(BaseModel):
     code: str
     language: str
 
+class WorkspaceCreate(BaseModel):
+    user_id: str
+    name: str
+    repo_url: str
+
+class WorkspaceReviewRequest(BaseModel):
+    user_id: str
+    workspace_id: str
+    code: str
+    language: str
+
+class DocumentationRequest(BaseModel):
+    user_id: str
+    workspace_id: str
+    doc_type: str
+
+class ExplainProjectRequest(BaseModel):
+    user_id: str
+    workspace_id: str
+
+@app.post("/workspace/explain")
+def explain_workspace(request: ExplainProjectRequest):
+
+    workspace_ref = db.collection("users") \
+        .document(request.user_id) \
+        .collection("workspaces") \
+        .document(request.workspace_id)
+
+    workspace_doc = workspace_ref.get()
+
+    if not workspace_doc.exists:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    workspace_data = workspace_doc.to_dict()
+
+    files_ref = workspace_ref.collection("files").stream()
+    files = [file.to_dict() for file in files_ref]
+
+    prompt = build_project_explanation_prompt(
+        files,
+        workspace_data.get("tech_stack", [])
+    )
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=1200
+    )
+
+    explanation = response.choices[0].message.content.strip()
+
+    return {
+        "explanation": explanation
+    }
+
+def build_project_explanation_prompt(files, tech_stack):
+
+    file_list = "\n".join([f"- {file.get('file_name', file.get('name'))}" for file in files])
+
+    return f"""
+You are a senior software architect.
+
+Tech Stack:
+{tech_stack}
+
+Project Files:
+{file_list}
+
+Explain clearly:
+- What this project does
+- How the architecture works
+- Backend / Frontend interaction
+- Major components
+
+Be structured and detailed.
+"""
+
+
+def fetch_repo_files(repo_url):
+    parts = repo_url.rstrip("/").split("/")
+    owner = parts[-2]
+    repo = parts[-1]
+
+    all_files = []
+
+    def fetch_directory(path=""):
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+        response = requests.get(api_url)
+
+        if response.status_code != 200:
+            print("GitHub API Error:", response.status_code, response.text)
+            raise HTTPException(
+                status_code=400,
+                detail=f"GitHub API failed: {response.status_code}"
+            )
+
+        items = response.json()
+
+        for item in items:
+            if item["type"] == "file":
+                all_files.append({
+                    "name": item["name"],
+                    "path": item["path"],
+                    "download_url": item["download_url"],
+                    "type": "file"
+                })
+            elif item["type"] == "dir":
+                fetch_directory(item["path"])
+
+    fetch_directory()
+    return all_files
+
+def generate_project_summary(tech_stack, files):
+
+    prompt = f"""
+    Tech Stack: {tech_stack}
+    Files: {[file['name'] for file in files]}
+
+    Explain in 4-5 lines what this project likely does.
+    """
+
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.choices[0].message.content
+
+@app.get("/workspace/{user_id}/{workspace_id}/files")
+def get_workspace_files(user_id: str, workspace_id: str):
+
+    files_ref = db.collection("users") \
+                  .document(user_id) \
+                  .collection("workspaces") \
+                  .document(workspace_id) \
+                  .collection("files") \
+                  .stream()
+
+    result = []
+
+    for file in files_ref:
+        data = file.to_dict()
+        data["id"] = file.id
+        result.append(data)
+
+    return result
+
+@app.get("/workspace/file-content")
+def get_file_content(download_url: str):
+
+    try:
+        response = requests.get(download_url)
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch file")
+
+        return {
+            "content": response.text
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def build_generate_prompt(user_prompt: str, language: str):
     return f"""
@@ -225,9 +388,6 @@ Code:
 {request.code}
 """
 
-
-
-
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
@@ -346,14 +506,17 @@ def debug_code(request: CodeRequest):
 You are a senior {request.language} debugging expert.
 
 IMPORTANT RULES:
-- Fix all syntax errors.
-- Fix all runtime errors.
-- Fix logical bugs.
-- Preserve original structure as much as possible.
+- Check for syntax errors.
+- Check for runtime errors.
+- Check for logical bugs.
+- If the code has ANY issue:
+    1. First clearly list the errors found.
+    2. Then provide the corrected code.
+- If the code has NO issues at all, respond EXACTLY with:
+Your code is correct, no bugs found.
 - DO NOT optimize performance.
 - DO NOT redesign architecture.
 - DO NOT significantly refactor code.
-- Return ONLY corrected code.
 - Do NOT use markdown.
 - Do NOT wrap in triple backticks.
 
@@ -371,14 +534,30 @@ Code:
         max_tokens=900
     )
 
-    fixed_code = response.choices[0].message.content.strip()
+    result = response.choices[0].message.content.strip()
+    result = result.replace("```", "").strip()
 
-    # Safety cleanup if model adds markdown
-    fixed_code = fixed_code.replace("```", "").strip()
+    if result.lower() == "your code is correct, no bugs found.":
+        return {
+            "message": "Your code is correct, no bugs found."
+        }
+
+    # Split errors and fixed code
+    if "Corrected Code:" in result:
+        parts = result.split("Corrected Code:")
+        errors = parts[0].strip()
+        fixed_code = parts[1].strip()
+
+        return {
+            "errors": errors,
+            "fixed_code": fixed_code
+        }
 
     return {
-        "fixed_code": fixed_code
+        "fixed_code": result
     }
+
+
 
 @app.post("/optimize")
 def optimize_code(request: CodeRequest):
@@ -392,18 +571,22 @@ def optimize_code(request: CodeRequest):
 You are a senior {request.language} performance optimization engineer.
 
 IMPORTANT:
-- Analyze the code strictly as {request.language}.
 - Improve time complexity if possible.
-- Improve memory efficiency if possible.
-- Preserve original functionality.
-- Do NOT redesign architecture.
-- Do NOT change output behavior.
-- Do NOT add explanations inside the code.
-- Return ONLY optimized code.
-- Do NOT use markdown.
-- Do NOT wrap in triple backticks.
+- Improve space complexity if possible.
+- Preserve functionality.
+- Do NOT add markdown.
+- Return ONLY raw JSON.
 
-Language: {request.language}
+FORMAT:
+
+{{
+  "optimized_code": "...",
+  "theoretical_explanation": "...",
+  "before_time_complexity": "...",
+  "before_space_complexity": "...",
+  "after_time_complexity": "...",
+  "after_space_complexity": "..."
+}}
 
 Code:
 {request.code}
@@ -413,17 +596,26 @@ Code:
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
-        max_tokens=900
+        max_tokens=1200
     )
 
-    optimized_code = response.choices[0].message.content.strip()
+    raw = response.choices[0].message.content.strip()
 
-    # Cleanup markdown if added
-    optimized_code = optimized_code.replace("```", "").strip()
+    # Clean markdown if model adds it
+    raw = raw.replace("```json", "").replace("```", "").strip()
 
-    return {
-        "optimized_code": optimized_code
-    }
+    try:
+        return json.loads(raw)
+    except Exception:
+        # Fallback if model fails formatting
+        return {
+            "optimized_code": raw,
+            "theoretical_explanation": "Explanation not generated.",
+            "before_time_complexity": "Unknown",
+            "before_space_complexity": "Unknown",
+            "after_time_complexity": "Unknown",
+            "after_space_complexity": "Unknown"
+        }
 
 
 @app.post("/convert")
@@ -474,51 +666,6 @@ Code:
         "conversion_result": response.choices[0].message.content
     }
 
-
-def generate_quality_metrics(code: str, language: str):
-
-    prompt = f"""
-Analyze the following {language} code.
-
-Return ONLY raw JSON.
-Do NOT wrap in markdown.
-No explanations.
-
-Format:
-
-{{
-  "security_risk": "Low | Medium | High",
-  "readability_score": number,
-  "maintainability_score": number,
-  "code_smells": number
-}}
-
-Code:
-{code}
-"""
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        max_tokens=200
-    )
-
-    raw = response.choices[0].message.content.strip()
-
-    # Remove markdown if model still adds it
-    raw = raw.replace("```json", "").replace("```", "").strip()
-
-    try:
-        return json.loads(raw)
-    except Exception:
-        return {
-            "security_risk": "Unknown",
-            "readability_score": 0,
-            "maintainability_score": 0,
-            "code_smells": 0
-        }
-
 @app.post("/run")
 def run_code(request: RunRequest):
 
@@ -533,7 +680,7 @@ def run_code(request: RunRequest):
     try:
         # Create temporary file
         file_id = str(uuid.uuid4())
-
+        print("LANGUAGE RECEIVED:", request.language)
         if language == "python":
             file_path = f"{file_id}.py"
             command = ["python", file_path]
@@ -557,6 +704,45 @@ def run_code(request: RunRequest):
             file_path = f"{file_id}.cpp"
             exe_path = f"{file_id}.out"
             command = ["g++", file_path, "-o", exe_path]
+        elif language == "sql":
+            import sqlite3
+
+            try:
+                conn = sqlite3.connect(":memory:")
+                cursor = conn.cursor()
+
+                # Execute full script (handles multiple statements)
+                cursor.executescript(request.code)
+
+                # Get last statement
+                statements = [s.strip() for s in request.code.strip().split(";") if s.strip()]
+                last_statement = statements[-1].lower()
+
+                # If last statement is SELECT, fetch results
+                if last_statement.startswith("select"):
+                    cursor.execute(statements[-1])
+                    rows = cursor.fetchall()
+                    conn.close()
+                    return {
+                        "output": str(rows),
+                        "error": ""
+                    }
+
+                conn.commit()
+                conn.close()
+
+                return {
+                    "output": "query executed successfully.",
+                    "error": ""
+                }
+
+            except Exception as e:
+                return {
+                    "output": "",
+                    "error": str(e)
+                }
+
+
 
         else:
             raise HTTPException(status_code=400, detail="Execution not supported for this language yet")
@@ -633,18 +819,147 @@ def run_code(request: RunRequest):
             "error": str(e)
         }
 
+def detect_tech_stack(files):
+    tech_stack = []
+    file_names = [file["name"] for file in files]
 
-@app.post("/metrics")
-def code_metrics(request: MetricsRequest):
+    extensions = set()
+    for file in file_names:
+        if "." in file:
+            extensions.add(file.split(".")[-1].lower())
 
-    if not request.code.strip():
-        raise HTTPException(status_code=400, detail="Code cannot be empty")
+    # Backend frameworks
+    if "requirements.txt" in file_names:
+        tech_stack.append("Python")
 
-    if request.language.lower() not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=400, detail="Unsupported language")
+    if "pom.xml" in file_names:
+        tech_stack.append("Java")
+
+    # Node ecosystem
+    if "package.json" in file_names:
+        tech_stack.append("Node.js")
+
+    # Frontend detection by extension
+    if "html" in extensions:
+        tech_stack.append("HTML")
+
+    if "css" in extensions:
+        tech_stack.append("CSS")
+
+    if "js" in extensions:
+        tech_stack.append("JavaScript")
+
+    if "jsx" in extensions:
+        tech_stack.append("React")
+
+    if "ts" in extensions or "tsx" in extensions:
+        tech_stack.append("TypeScript")
+
+    if "php" in extensions:
+        tech_stack.append("PHP")
+
+    if "py" in extensions:
+        tech_stack.append("Python")
+
+    return list(set(tech_stack))
 
 
-    return generate_quality_metrics(
-        request.code,
-        request.language
+def generate_project_summary(tech_stack, files):
+
+    prompt = f"""
+    Tech Stack: {tech_stack}
+    Files: {[file['name'] for file in files]}
+
+    Explain in 4-5 lines what this project likely does.
+    """
+
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": prompt}]
     )
+
+    return response.choices[0].message.content
+
+
+@app.post("/create-workspace")
+def create_workspace(data: WorkspaceCreate):
+
+    files = fetch_repo_files(data.repo_url)
+    tech_stack = detect_tech_stack(files)
+    summary = generate_project_summary(tech_stack, files)
+
+    workspace_ref = db.collection("users") \
+                      .document(data.user_id) \
+                      .collection("workspaces") \
+                      .document()
+
+    workspace_ref.set({
+        "name": data.name,
+        "repo_url": data.repo_url,
+        "tech_stack": tech_stack,
+        "project_summary": summary,
+        "created_at": datetime.utcnow()
+    })
+
+    # ✅ SAVE FILES INTO SUBCOLLECTION
+    for file in files:
+        workspace_ref.collection("files").add({
+            "file_name": file.get("name"),
+            "path": file.get("path"),
+            "download_url": file.get("download_url"),
+            "type": file.get("type")
+        })
+
+    return {
+        "workspace_id": workspace_ref.id,
+        "tech_stack": tech_stack,
+        "summary": summary
+    }
+
+
+@app.get("/user/{user_id}/workspaces")
+def get_user_workspaces(user_id: str):
+
+    workspaces = db.collection("users") \
+                   .document(user_id) \
+                   .collection("workspaces") \
+                   .stream()
+
+    result = []
+
+    for ws in workspaces:
+        data = ws.to_dict()
+        data["id"] = ws.id
+        result.append(data)
+
+    return result
+
+@app.post("/generate-docs")
+def generate_docs(data: DocumentationRequest):
+
+    workspace = db.collection("users") \
+                  .document(data.user_id) \
+                  .collection("workspaces") \
+                  .document(data.workspace_id) \
+                  .get() \
+                  .to_dict()
+
+    if not workspace:
+        return {"error": "Workspace not found"}
+
+    prompt = f"""
+    Project Summary:
+    {workspace['project_summary']}
+
+    Tech Stack:
+    {workspace['tech_stack']}
+
+    Generate {data.doc_type} documentation for this project.
+    """
+
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return {"documentation": response.choices[0].message.content}

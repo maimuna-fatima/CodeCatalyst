@@ -80,7 +80,7 @@ function Rewrite() {
 
         {/* Header */}
         <div style={headerStyle}>
-          <h2>Code Improver</h2>
+          <h2>Code Rewriter</h2>
 
           <select
             style={selectStyle}
@@ -118,70 +118,74 @@ function Rewrite() {
               cursorBlinking: "smooth",
               smoothScrolling: true,
               scrollBeyondLastLine: false,
+              padding: { top: 16, bottom: 16 },
             }}
           />
         </div>
 
         <button className="action-btn" onClick={handleImprove}>
-          {loading ? "Improving..." : "Run Improver"}
+          {loading ? "Rewriting..." : "Run Rewrite"}
         </button>
 
         {/* Output Section */}
-        <div style={{ marginTop: "30px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "10px",
-            }}
-          >
-            <h3>View Improved Code</h3>
-
+        {output && (
+          <div style={{ marginTop: "30px" }}>
             <div
-              onClick={handleCopy}
               style={{
-                cursor: "pointer",
-                background: "#1e293b",
-                padding: "8px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                transition: "0.2s ease",
+                marginBottom: "10px",
               }}
             >
-              {copied ? (
-                <FiCheck size={18} color="#22c55e" />
-              ) : (
-                <FiCopy size={18} color="#cbd5e1" />
-              )}
+              <h3>View Improved Code</h3>
+
+              <div
+                onClick={handleCopy}
+                style={{
+                  cursor: "pointer",
+                  background: "#1e293b",
+                  padding: "8px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "0.2s ease",
+                }}
+              >
+                {copied ? (
+                  <FiCheck size={18} color="#22c55e" />
+                ) : (
+                  <FiCopy size={18} color="#cbd5e1" />
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+              }}
+            >
+              <Editor
+                height="400px"
+                language={language}
+                value={output}
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  fontFamily: "Fira Code, monospace",
+                  scrollBeyondLastLine: false,
+                  padding: { top: 16, bottom: 16 },
+                }}
+              />
             </div>
           </div>
-
-          <div
-            style={{
-              borderRadius: "16px",
-              overflow: "hidden",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-            }}
-          >
-            <Editor
-              height="400px"
-              language={language}
-              value={output}
-              theme="vs-dark"
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "Fira Code, monospace",
-                scrollBeyondLastLine: false,
-              }}
-            />
-          </div>
-        </div>
+        )}
 
       </div>
     </div>

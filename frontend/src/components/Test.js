@@ -108,7 +108,11 @@ ${result.error || "No errors"}
             <option value="java">Java</option>
             <option value="c">C</option>
             <option value="cpp">C++</option>
+            <option value="rust">Rust</option>
+            <option value="sql">SQL</option>
           </select>
+          {console.log("Language being sent:", language)}
+
         </div>
 
         {/* Input Editor */}
@@ -132,6 +136,7 @@ ${result.error || "No errors"}
               cursorBlinking: "smooth",
               smoothScrolling: true,
               scrollBeyondLastLine: false,
+              padding: { top: 16, bottom: 16 },
             }}
           />
         </div>
@@ -141,62 +146,65 @@ ${result.error || "No errors"}
         </button>
 
         {/* Output Section */}
-        <div style={{ marginTop: "30px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "10px",
-            }}
-          >
-            <h3>Execution Result</h3>
-
+        {(result.output || result.error) && (
+          <div style={{ marginTop: "30px" }}>
             <div
-              onClick={handleCopy}
               style={{
-                cursor: "pointer",
-                background: "#1e293b",
-                padding: "8px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                transition: "0.2s ease",
+                marginBottom: "10px",
               }}
             >
-              {copied ? (
-                <FiCheck size={18} color="#22c55e" />
-              ) : (
-                <FiCopy size={18} color="#cbd5e1" />
-              )}
+              <h3>Execution Result</h3>
+
+              <div
+                onClick={handleCopy}
+                style={{
+                  cursor: "pointer",
+                  background: "#1e293b",
+                  padding: "8px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "0.2s ease",
+                }}
+              >
+                {copied ? (
+                  <FiCheck size={18} color="#22c55e" />
+                ) : (
+                  <FiCopy size={18} color="#cbd5e1" />
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+              }}
+            >
+              <Editor
+                height="350px"
+                language="plaintext"
+                value={outputText}
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  fontFamily: "Fira Code, monospace",
+                  scrollBeyondLastLine: false,
+                  wordWrap: "on",
+                  padding: { top: 16, bottom: 16 },
+                }}
+              />
             </div>
           </div>
-
-          <div
-            style={{
-              borderRadius: "16px",
-              overflow: "hidden",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-            }}
-          >
-            <Editor
-              height="350px"
-              language="plaintext"
-              value={outputText}
-              theme="vs-dark"
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "Fira Code, monospace",
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-              }}
-            />
-          </div>
-        </div>
+        )}
 
       </div>
     </div>

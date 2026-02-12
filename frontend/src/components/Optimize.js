@@ -11,15 +11,15 @@ function Optimize() {
   const { code, setCode } = useContext(CodeContext);
 
   const [language, setLanguage] = useState("python");
-  const [output, setOutput] = useState("");
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    if (!output) return;
+    if (!result?.optimized_code) return;
 
     try {
-      await navigator.clipboard.writeText(output);
+      await navigator.clipboard.writeText(result.optimized_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
@@ -39,14 +39,11 @@ function Optimize() {
       const res = await fetch(`${API}/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          language,
-        }),
+        body: JSON.stringify({ code, language }),
       });
 
       const data = await res.json();
-      setOutput(data.optimized_code);
+      setResult(data);
     } catch (error) {
       console.error("Optimize error:", error);
       alert("Optimization failed.");
@@ -55,7 +52,6 @@ function Optimize() {
     }
   };
 
-  /* Header Styles */
   const headerStyle = {
     display: "flex",
     justifyContent: "space-between",
@@ -118,6 +114,7 @@ function Optimize() {
               cursorBlinking: "smooth",
               smoothScrolling: true,
               scrollBeyondLastLine: false,
+              padding: { top: 16, bottom: 16 },
             }}
           />
         </div>
@@ -126,62 +123,103 @@ function Optimize() {
           {loading ? "Optimizing..." : "Run Optimizer"}
         </button>
 
-        {/* Output Section */}
-        <div style={{ marginTop: "30px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "10px",
-            }}
-          >
-            <h3>View Optimized Code</h3>
+        {/* ================= OUTPUT SECTION ================= */}
+        {result && (
+          <div style={{ marginTop: "40px" }}>
 
+            {/* Output Header */}
             <div
-              onClick={handleCopy}
               style={{
-                cursor: "pointer",
-                background: "#1e293b",
-                padding: "8px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                transition: "0.2s ease",
+                marginBottom: "10px",
               }}
             >
-              {copied ? (
-                <FiCheck size={18} color="#22c55e" />
-              ) : (
-                <FiCopy size={18} color="#cbd5e1" />
-              )}
-            </div>
-          </div>
+              <h3>Optimized Code</h3>
 
-          <div
-            style={{
-              borderRadius: "16px",
-              overflow: "hidden",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-            }}
-          >
-            <Editor
-              height="400px"
-              language={language}
-              value={output}
-              theme="vs-dark"
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "Fira Code, monospace",
-                scrollBeyondLastLine: false,
+              <div
+                onClick={handleCopy}
+                style={{
+                  cursor: "pointer",
+                  background: "#1e293b",
+                  padding: "8px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "0.2s ease",
+                }}
+              >
+                {copied ? (
+                  <FiCheck size={18} color="#22c55e" />
+                ) : (
+                  <FiCopy size={18} color="#cbd5e1" />
+                )}
+              </div>
+            </div>
+
+            {/* Output Editor */}
+            <div
+              style={{
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
               }}
-            />
+            >
+              <Editor
+                height="400px"
+                language={language}
+                value={result.optimized_code}
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  fontFamily: "Fira Code, monospace",
+                  scrollBeyondLastLine: false,
+                  padding: { top: 16, bottom: 16 },
+                }}
+              />
+            </div>
+
+            {/* ================= Explanation ================= */}
+            <h3 className="section-title">Explanation</h3>
+
+            <div className="explanation-card">
+              {result.theoretical_explanation}
+            </div>
+
+            {/* ================= Complexity ================= */}
+            <h3 className="section-title">Complexity Comparison</h3>
+
+            <div className="complexity-wrapper">
+
+              <div className="complexity-box before-box">
+                <h4>Before Optimization</h4>
+                <p>
+                  <strong>Time Complexity:</strong> {result.before_time_complexity}
+                </p>
+                <p>
+                  <strong>Space Complexity:</strong> {result.before_space_complexity}
+                </p>
+              </div>
+
+              <div className="complexity-box after-box">
+                <h4>After Optimization</h4>
+                <p>
+                  <strong>Time Complexity:</strong> {result.after_time_complexity}
+                </p>
+                <p>
+                  <strong>Space Complexity:</strong> {result.after_space_complexity}
+                </p>
+              </div>
+
+            </div>
+
           </div>
-        </div>
+        )}
 
       </div>
     </div>

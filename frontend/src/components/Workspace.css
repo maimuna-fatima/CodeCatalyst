@@ -1,0 +1,321 @@
+.workspace-container {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+}
+
+.workspace-main {
+  flex: 1;
+  padding: 30px;
+}
+
+.workspace-title {
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+.workspace-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.workspace-form input {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+}
+
+.workspace-form button {
+  padding: 10px 16px;
+  background: #6366f1;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.workspace-form button:hover {
+  background: #4f46e5;
+}
+
+.workspace-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.workspace-item {
+  background: rgba(255, 255, 255, 0.07);
+  padding: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.workspace-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.active-workspace {
+  border: 2px solid #6366f1;
+}
+
+.workspace-view {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.workspace-info {
+  flex: 1;
+}
+
+.file-explorer {
+  width: 250px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 15px;
+  border-radius: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-item {
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;   /* VERY IMPORTANT */
+  transition: 0.2s;
+}
+
+.file-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.active-file {
+  background: #6366f1;
+}
+
+.code-viewer {
+  flex: 2;
+  background: #0f172a;
+  padding: 15px;
+  border-radius: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.code-viewer pre {
+  white-space: pre-wrap;
+  font-family: monospace;
+}
+.workspace-section {
+  background: #1f2a44;
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 15px;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.workspace-section.clickable {
+  cursor: pointer;
+}
+
+.workspace-section.clickable:hover {
+  background: #2c3e66;
+}
+
+.workspace-box {
+  background: #16213e;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.file-container {
+  display: flex;
+  gap: 20px;
+}
+
+.file-list {
+  width: 30%;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-item {
+  padding: 10px;
+  background: #0f3460;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.file-item:hover {
+  background: #1b4f8a;
+}
+
+.active-file {
+  background: #533483;
+}
+
+.file-content {
+  width: 70%;
+  max-height: 400px;
+  overflow-y: auto;
+  background: #0b132b;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+/* =============================== */
+/* Explanation Styling */
+/* =============================== */
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.explanation-box {
+  background: #0f1b2d;
+  padding: 30px;
+  border-radius: 14px;
+  line-height: 1.8;
+  font-size: 16px;
+  color: #f0f0f0;
+  max-width: 900px;
+  white-space: pre-wrap;
+}
+
+.explanation-box p {
+  margin-bottom: 14px;
+}
+
+/* =============================== */
+/* Workspace Section Box */
+/* =============================== */
+
+.workspace-box {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.docs-buttons {
+  margin-top: 20px;
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.docs-buttons button {
+  padding: 10px 18px;
+  background: #1e293b;
+  color: white;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.docs-buttons button:hover {
+  background: #2563eb;
+}
+
+.active-doc-btn {
+  background: #2563eb !important;
+}
+
+.docs-output {
+  margin-top: 25px;
+  background: #0f172a;
+  padding: 25px;
+  border-radius: 12px;
+  line-height: 1.6;
+  font-size: 15px;
+  white-space: pre-wrap;
+}
+
+.loading-text {
+  margin-top: 20px;
+}
+
+/* ================= LIGHT MODE WORKSPACE ================= */
+
+body.light-mode .workspace-container {
+  background: #f8fafc !important;
+  color: #111827 !important;
+}
+
+/* Main titles */
+body.light-mode .workspace-title,
+body.light-mode .page-title {
+  color: #000000 !important;
+}
+
+/* Cards */
+body.light-mode .workspace-card,
+body.light-mode .workspace-box,
+body.light-mode .workspace-section,
+body.light-mode .file-explorer,
+body.light-mode .docs-output,
+body.light-mode .explanation-box {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* Workspace items */
+body.light-mode .workspace-item {
+  background: #f1f5f9 !important;
+  color: #111827 !important;
+}
+
+body.light-mode .workspace-item:hover {
+  background: #e2e8f0 !important;
+}
+
+/* File list */
+body.light-mode .file-item {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+body.light-mode .file-item:hover {
+  background: #e5e7eb !important;
+}
+
+body.light-mode .active-file {
+  background: #6366f1 !important;
+  color: #ffffff !important;
+}
+
+/* Code viewer */
+body.light-mode .code-viewer,
+body.light-mode .file-content {
+  background: #f9fafb !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* Buttons */
+body.light-mode .workspace-form button,
+body.light-mode .docs-buttons button {
+  background: #6366f1 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+body.light-mode .docs-buttons button:hover {
+  background: #4f46e5 !important;
+}

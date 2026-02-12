@@ -155,71 +155,72 @@ function Convert() {
               cursorBlinking: "smooth",
               smoothScrolling: true,
               scrollBeyondLastLine: false,
+              padding: { top: 16, bottom: 16 },
             }}
           />
         </div>
-
-
 
         <button className="action-btn" onClick={handleConvert}>
           {loading ? "Converting..." : "Run Converter"}
         </button>
 
-        <div style={{ marginTop: "30px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "10px",
-            }}
-          >
-            <h3>View Converted Code</h3>
-
+        {output && (
+          <div style={{ marginTop: "30px" }}>
             <div
-              onClick={handleCopy}
               style={{
-                cursor: "pointer",
-                background: "#1e293b",
-                padding: "8px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                transition: "0.2s ease",
+                marginBottom: "10px",
               }}
             >
-              {copied ? (
-                <FiCheck size={18} color="#22c55e" />
-              ) : (
-                <FiCopy size={18} color="#cbd5e1" />
-              )}
+              <h3>View Converted Code</h3>
+
+              <div
+                onClick={handleCopy}
+                style={{
+                  cursor: "pointer",
+                  background: "#1e293b",
+                  padding: "8px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "0.2s ease",
+                }}
+              >
+                {copied ? (
+                  <FiCheck size={18} color="#22c55e" />
+                ) : (
+                  <FiCopy size={18} color="#cbd5e1" />
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+              }}
+            >
+              <Editor
+                height="400px"
+                language={targetLang}
+                value={output}
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  fontFamily: "Fira Code, monospace",
+                  scrollBeyondLastLine: false,
+                }}
+              />
             </div>
           </div>
-
-          <div
-            style={{
-              borderRadius: "16px",
-              overflow: "hidden",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-            }}
-          >
-            <Editor
-              height="400px"
-              language={targetLang}
-              value={output}
-              theme="vs-dark"
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "Fira Code, monospace",
-                scrollBeyondLastLine: false,
-              }}
-            />
-          </div>
-        </div>
+        )}
 
 
 

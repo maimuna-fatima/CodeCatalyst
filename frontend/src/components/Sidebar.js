@@ -1,13 +1,16 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import "./Dashboard.css";
+import {useNavigate} from "react-router-dom";
 
 function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const menuItems = [
+    { name: "Workspaces", path: "/create-workspace" },
     { name: "Optimize", path: "/optimize" },
-    { name: "Improve", path: "/improve" },
+    { name: "Rewrite", path: "/rewrite" },
     { name: "Convert", path: "/convert" },
     { name: "Debug", path: "/debug" },
     { name: "Generate", path: "/generate" },
@@ -15,11 +18,20 @@ function Sidebar() {
     { name: "Test", path: "/test" },
     { name: "Comment", path: "/comment" },
   ];
-
+   const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
+  };
   return (
     <div className="sidebar">
-      <h2 className="logo">CodeCatalyst</h2>
-
+      {/* Clickable Logo */}
+      <Link
+        to="/dashboard"
+        className="logo"
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
+        CodeCatalyst
+      </Link>
       <ul>
         {menuItems.map((item, index) => (
           <li key={index}>
@@ -36,6 +48,11 @@ function Sidebar() {
           </li>
         ))}
       </ul>
+      <div className="logout-section">
+        <button onClick={handleLogout} className="logout-btn">
+          Logout
+        </button>
+      </div>
     </div>
   );
 }
