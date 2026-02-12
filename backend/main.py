@@ -111,6 +111,15 @@ class ExplainProjectRequest(BaseModel):
     user_id: str
     workspace_id: str
 
+class EdgeCaseRequest(BaseModel):
+    code: str
+    language: str
+
+class GenerateRequest(BaseModel):
+    message: str
+    language: str
+    history: list = []
+
 @app.post("/workspace/explain")
 def explain_workspace(request: ExplainProjectRequest):
 
@@ -276,29 +285,42 @@ Task:
 @app.post("/generate")
 def generate_code(request: GenerateRequest):
 
-    if not request.prompt.strip():
-        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
     if request.language.lower() not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=400, detail="Unsupported language")
 
-    prompt = build_generate_prompt(request.prompt, request.language)
+    prompt = f"""
+You are a senior {request.language} software engineer.
+
+If this is the first message, generate COMPLETE production-ready code.
+
+If the user provides an instruction, modify the EXISTING code accordingly.
+
+Return ONLY raw full code.
+No markdown.
+No explanations.
+
+Current Code:
+{request.history[-1]['content'] if request.history else ""}
+
+User Instruction:
+{request.message}
+"""
 
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
+        temperature=0.4,
         max_tokens=1500
     )
 
     result = response.choices[0].message.content.strip()
-
-    # Remove fenced code blocks completely
-    result = re.sub(r"^```[a-zA-Z]*\n?", "", result)
-    result = re.sub(r"\n?```$", "", result).strip()
-
+    result = result.replace("```", "").strip()
 
     return {
-        "generated_code": result
+        "code": result
     }
 
 def build_comment_prompt(code: str, language: str):
@@ -963,3 +985,96 @@ def generate_docs(data: DocumentationRequest):
     )
 
     return {"documentation": response.choices[0].message.content}
+
+# ================================
+# EDGE CASE PROMPT
+# ================================
+
+def build_edge_case_prompt(code: str, language: str):
+    return f"""
+You are a strict QA engineer.
+
+Return ONLY valid JSON.
+Do NOT include explanations.
+Do NOT include markdown.
+Do NOT include backticks.
+
+Return strictly in this format:
+
+{{
+  "edge_test_cases": [
+    {{
+      "input": {{ }},
+      "expected_behavior": ""
+    }}
+  ]
+}}
+
+Rules:
+- Minimum 5 test cases
+- Include runtime error cases
+- Include boundary values
+- Include invalid input types
+- Include extreme values
+- Ensure JSON is valid
+
+Code:
+{code}
+"""
+
+
+# ================================
+# EDGE CASE ENDPOINT (FIXED)
+# ================================
+
+@app.post("/edge-cases")
+def generate_edge_cases(request: EdgeCaseRequest):
+
+    if not request.code.strip():
+        raise HTTPException(status_code=400, detail="Code cannot be empty")
+
+    if request.language.lower() not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+
+    prompt = build_edge_case_prompt(request.code, request.language)
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        max_tokens=1200
+    )
+
+    raw = response.choices[0].message.content.strip()
+
+    # Remove markdown completely
+    raw = raw.replace("```json", "").replace("```", "").strip()
+
+    # Extract JSON safely
+    match = re.search(r"\{[\s\S]*\}", raw)
+
+    if not match:
+        return {
+            "edge_test_cases": [],
+            "error": "Model did not return valid JSON",
+            "debug_output": raw
+        }
+
+    try:
+        parsed = json.loads(match.group())
+
+        if "edge_test_cases" not in parsed:
+            return {
+                "edge_test_cases": [],
+                "error": "Missing edge_test_cases key",
+                "debug_output": raw
+            }
+
+        return parsed
+
+    except Exception as e:
+        return {
+            "edge_test_cases": [],
+            "error": "JSON parsing failed",
+            "debug_output": raw
+        }

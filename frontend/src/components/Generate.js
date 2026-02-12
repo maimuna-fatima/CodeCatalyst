@@ -1,35 +1,33 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import Sidebar from "./Sidebar";
-import { CodeContext } from "./CodeContext";
 import Editor from "@monaco-editor/react";
-import { FiCopy, FiCheck } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiArrowRight,
+  FiCopy,
+  FiCheck,
+} from "react-icons/fi";
 import "./Dashboard.css";
 
 const API = "http://127.0.0.1:8000";
 
 function Generate() {
-  const { code, setCode } = useContext(CodeContext);
-
   const [language, setLanguage] = useState("python");
-  const [output, setOutput] = useState("");
+  const [versions, setVersions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [instruction, setInstruction] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
-    if (!output) return;
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
-    try {
-      await navigator.clipboard.writeText(output);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (err) {
-      console.error("Copy failed", err);
-    }
-  };
+  const currentVersion = versions[currentIndex] || {};
+  const currentCode = currentVersion.code || "";
+  const currentPrompt = currentVersion.prompt || "";
 
-  const handleGenerate = async () => {
-    if (!code.trim()) {
-      alert("Please enter a prompt first.");
+  const handleSubmit = async () => {
+    if (!instruction.trim()) {
+      alert("Please enter a description or modification.");
       return;
     }
 
@@ -40,23 +38,69 @@ function Generate() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: code,
-          language: language
-        })
+          message: instruction,
+          language: language,
+          history: currentCode
+            ? [{ role: "assistant", content: currentCode }]
+            : [],
+        }),
       });
 
       const data = await res.json();
-      setOutput(data.generated_code);
+      let newCode = data.code || "";
 
+      // 🔥 Remove leading language name like "python"
+      newCode = newCode.replace(
+        /^(python|java|javascript|cpp|c|go|rust|sql)\s*\n/i,
+        ""
+      );
+
+      const newVersion = {
+        prompt: instruction,
+        code: newCode,
+      };
+
+      setVersions((prev) => {
+        const updated = [...prev.slice(0, currentIndex + 1), newVersion];
+        setCurrentIndex(updated.length - 1);
+        return updated;
+      });
+
+      setInstruction("");
     } catch (error) {
       console.error("Generation error:", error);
-      alert("Code generation failed.");
+      alert("Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* Header Styles */
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < versions.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    }
+  };
+
+  const handleCopyCode = async () => {
+    if (!currentCode) return;
+    await navigator.clipboard.writeText(currentCode);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 1500);
+  };
+
+  const handleCopyPrompt = async () => {
+    if (!currentPrompt) return;
+    await navigator.clipboard.writeText(currentPrompt);
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 1500);
+  };
+
   const headerStyle = {
     display: "flex",
     justifyContent: "space-between",
@@ -79,7 +123,7 @@ function Generate() {
 
       <div className="main-content">
 
-        {/* Header with right-aligned language selector */}
+        {/* Header */}
         <div style={headerStyle}>
           <h2>Code Generator</h2>
 
@@ -99,97 +143,188 @@ function Generate() {
           </select>
         </div>
 
-        {/* Prompt Editor */}
-        <div
-          style={{
-            borderRadius: "16px",
-            overflow: "hidden",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-          }}
-        >
-          <Editor
-            height="300px"
-            language="markdown"
-            value={code}
-            theme="vs-dark"
-            onChange={(value) => setCode(value)}
-            options={{
-              fontSize: 14,
-              minimap: { enabled: false },
-              fontFamily: "Fira Code, monospace",
-              cursorBlinking: "smooth",
-              smoothScrolling: true,
-              scrollBeyondLastLine: false,
-              wordWrap: "on",
-              padding: { top: 16, bottom: 16 },
+        {/* Large Prompt Input */}
+        <div style={{ marginBottom: "25px" }}>
+          <textarea
+            placeholder="Describe what to build or modify..."
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            rows={6}
+            style={{
+              width: "100%",
+              padding: "15px",
+              borderRadius: "12px",
+              border: "1px solid #334155",
+              backgroundColor: "#0f172a",
+              color: "white",
+              resize: "none",
+              fontSize: "14px",
             }}
           />
+
+          <button
+            className="action-btn"
+            style={{ marginTop: "12px" }}
+            onClick={handleSubmit}
+          >
+            {loading ? "Processing..." : "Submit"}
+          </button>
         </div>
 
-        <button className="action-btn" onClick={handleGenerate}>
-          {loading ? "Generating..." : "Generate Code"}
-        </button>
-
-        {/* Output Section */}
-        {output && (
-          <div style={{ marginTop: "30px" }}>
+        {/* Prompt Display Box */}
+        {currentPrompt && (
+          <div
+            style={{
+              marginBottom: "20px",
+              padding: "15px",
+              background: "#1e293b",
+              borderRadius: "12px",
+              border: "1px solid #334155",
+              position: "relative",
+              color: "#cbd5e1",
+              fontSize: "13px",
+            }}
+          >
             <div
+              onClick={handleCopyPrompt}
               style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                cursor: "pointer",
+                background: "#0f172a",
+                padding: "6px",
+                borderRadius: "6px",
+                border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "10px",
+                justifyContent: "center",
               }}
             >
-              <h3>Generated Code</h3>
-
-              <div
-                onClick={handleCopy}
-                style={{
-                  cursor: "pointer",
-                  background: "#1e293b",
-                  padding: "8px",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "0.2s ease",
-                }}
-              >
-                {copied ? (
-                  <FiCheck size={18} color="#22c55e" />
-                ) : (
-                  <FiCopy size={18} color="#cbd5e1" />
-                )}
-              </div>
+              {promptCopied ? (
+                <FiCheck size={16} color="#22c55e" />
+              ) : (
+                <FiCopy size={16} color="#cbd5e1" />
+              )}
             </div>
 
-            <div
-              style={{
-                borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-              }}
-            >
-              <Editor
-                height="400px"
-                language={language}
-                value={output}
-                theme="vs-dark"
-                options={{
-                  readOnly: true,
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  fontFamily: "Fira Code, monospace",
-                  scrollBeyondLastLine: false,
-                  padding: { top: 16, bottom: 16 },
-                }}
-              />
+            <strong style={{ display: "block", marginBottom: "8px" }}>
+              Prompt Used:
+            </strong>
+
+            <div style={{ whiteSpace: "pre-wrap", paddingRight: "35px" }}>
+              {currentPrompt}
             </div>
           </div>
         )}
 
+        {/* Code Box with Copy Inside */}
+        {versions.length > 0 && (
+          <div
+            style={{
+              borderRadius: "16px",
+              overflow: "hidden",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+              position: "relative",
+            }}
+          >
+            <div
+              onClick={handleCopyCode}
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                cursor: "pointer",
+                background: "#0f172a",
+                padding: "6px",
+                borderRadius: "6px",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+              }}
+            >
+              {codeCopied ? (
+                <FiCheck size={16} color="#22c55e" />
+              ) : (
+                <FiCopy size={16} color="#cbd5e1" />
+              )}
+            </div>
+            
+            <Editor
+              height="520px"
+              language={language}
+              value={currentCode}
+              theme="vs-dark"
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                fontFamily: "Fira Code, monospace",
+                scrollBeyondLastLine: false,
+                padding: { top: 20, bottom: 16 },
+              }}
+            />
+          </div>
+        )}
+
+        {/* Navigation */}
+        {versions.length > 0 && (
+          <div
+            style={{
+              marginTop: "30px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "30px",
+            }}
+          >
+            <button
+              onClick={handlePrev}
+              disabled={currentIndex === 0}
+              style={{
+                background: "#1e293b",
+                border: "1px solid #334155",
+                borderRadius: "50%",
+                padding: "10px",
+                cursor: "pointer",
+                opacity: currentIndex === 0 ? 0.4 : 1,
+              }}
+            >
+              <FiArrowLeft size={20} color="white" />
+            </button>
+
+            <div
+              style={{
+                padding: "8px 18px",
+                borderRadius: "20px",
+                background: "#1e293b",
+                border: "1px solid #334155",
+                fontSize: "14px",
+                color: "#cbd5e1",
+              }}
+            >
+              Version {currentIndex + 1} / {versions.length}
+            </div>
+
+            <button
+              onClick={handleNext}
+              disabled={currentIndex === versions.length - 1}
+              style={{
+                background: "#1e293b",
+                border: "1px solid #334155",
+                borderRadius: "50%",
+                padding: "10px",
+                cursor: "pointer",
+                opacity:
+                  currentIndex === versions.length - 1 ? 0.4 : 1,
+              }}
+            >
+              <FiArrowRight size={20} color="white" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

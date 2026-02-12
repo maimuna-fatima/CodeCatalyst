@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { auth } from "../firebase";
@@ -11,33 +11,44 @@ function WorkspaceFiles() {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    const res = await fetch(
-      `${API}/workspace/${user.uid}/${workspaceId}/files`
-    );
-    const data = await res.json();
-    setFiles(data);
-  };
+    try {
+      const res = await fetch(
+        `${API}/workspace/${user.uid}/${workspaceId}/files`
+      );
+      const data = await res.json();
+      setFiles(data);
+    } catch (error) {
+      console.error("Failed to fetch files:", error);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles]);
 
   const fetchFileContent = async (file) => {
     setSelectedFile(file);
+    setLoading(true);
 
-    const res = await fetch(
-      `${API}/workspace/file-content?download_url=${encodeURIComponent(
-        file.download_url
-      )}`
-    );
-
-    const data = await res.json();
-    setFileContent(data.content);
+    try {
+      const res = await fetch(
+        `${API}/workspace/file-content?download_url=${encodeURIComponent(
+          file.download_url
+        )}`
+      );
+      const data = await res.json();
+      setFileContent(data.content);
+    } catch (error) {
+      console.error("Failed to fetch file content:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,26 +56,45 @@ function WorkspaceFiles() {
       <Sidebar />
 
       <div className="workspace-main">
-        <h1>Project Files</h1>
+        <h1 className="page-title">Project Files</h1>
 
         <div className="file-container">
+          {/* LEFT PANEL */}
           <div className="file-list">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className="file-item"
-                onClick={() => fetchFileContent(file)}
-              >
-                {file.file_name}
-              </div>
-            ))}
+            {files.length === 0 ? (
+              <p className="empty-text">No files found</p>
+            ) : (
+              files.map((file) => (
+                <div
+                  key={file.id}
+                  className={`file-item ${
+                    selectedFile?.id === file.id ? "active-file" : ""
+                  }`}
+                  onClick={() => fetchFileContent(file)}
+                >
+                  {file.file_name}
+                </div>
+              ))
+            )}
           </div>
 
+          {/* RIGHT PANEL */}
           <div className="file-content">
+            {!selectedFile && (
+              <div className="empty-state">
+                Select a file to view its content
+              </div>
+            )}
+
             {selectedFile && (
               <>
                 <h3>{selectedFile.file_name}</h3>
-                <pre>{fileContent}</pre>
+
+                {loading ? (
+                  <p className="loading-text">Loading file...</p>
+                ) : (
+                  <pre>{fileContent}</pre>
+                )}
               </>
             )}
           </div>

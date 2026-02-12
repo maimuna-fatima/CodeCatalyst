@@ -13,6 +13,8 @@ function CreateWorkspace() {
   const [workspaces, setWorkspaces] = useState([]);
   const [name, setName] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
+  const [creating, setCreating] = useState(false);
+
 
   const fetchWorkspaces = async () => {
     const user = auth.currentUser;
@@ -22,54 +24,57 @@ function CreateWorkspace() {
     const data = await res.json();
     setWorkspaces(data);
   };
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchWorkspaces();
   }, []);
 
   const handleCreate = async () => {
-  if (!name || !repoUrl) {
-    alert("Fill all fields.");
-    return;
-  }
+    if (!name || !repoUrl) {
+      alert("Fill all fields.");
+      return;
+    }
 
-  try {
-    const res = await fetch(`${API}/create-workspace`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: auth.currentUser.uid,
+    try {
+      setCreating(true);   // 🔥 START LOADING
+
+      const res = await fetch(`${API}/create-workspace`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: auth.currentUser.uid,
+          name,
+          repo_url: repoUrl,
+        }),
+      });
+
+      const data = await res.json();
+
+      const newWorkspace = {
+        id: data.workspace_id,
         name,
-        repo_url: repoUrl,
-      }),
-    });
+        tech_stack: data.tech_stack,
+        project_summary: data.summary,
+        user_id: auth.currentUser.uid,
+      };
 
-    const data = await res.json();
+      setWorkspace(newWorkspace);
 
-    const newWorkspace = {
-      id: data.workspace_id,
-      name,
-      tech_stack: data.tech_stack,
-      project_summary: data.summary,
-      user_id: auth.currentUser.uid,
-    };
+      setName("");
+      setRepoUrl("");
 
-    setWorkspace(newWorkspace);
+      fetchWorkspaces();
 
-    setName("");
-    setRepoUrl("");
+      navigate(`/workspace/${data.workspace_id}`);
 
-    fetchWorkspaces();
-
-    // 🔥 ADD THIS
-    navigate(`/workspace/${data.workspace_id}`);
-
-  } catch (err) {
-    console.error(err);
-    alert("Creation failed.");
-  }
-};
+    } catch (err) {
+      console.error(err);
+      alert("Creation failed.");
+    } finally {
+      setCreating(false);  // 🔥 STOP LOADING
+    }
+  };
 
 
   return (
@@ -99,9 +104,18 @@ const navigate = useNavigate();
 
         <br /><br />
 
-        <button className="action-btn" onClick={handleCreate}>
-          Create Workspace
+        <button
+          className="action-btn"
+          onClick={handleCreate}
+          disabled={creating}
+          style={{
+            opacity: creating ? 0.6 : 1,
+            cursor: creating ? "not-allowed" : "pointer",
+          }}
+        >
+          {creating ? "Creating..." : "Create Workspace"}
         </button>
+
         {/* Existing Workspaces */}
         <h3 style={{ marginTop: "30px" }}>Your Workspaces</h3>
 
@@ -113,10 +127,10 @@ const navigate = useNavigate();
           <div
             key={ws.id}
             onClick={() => {
-  const selected = { ...ws, user_id: auth.currentUser.uid };
-  setWorkspace(selected);
-  navigate(`/workspace/${ws.id}`);
-}}
+              const selected = { ...ws, user_id: auth.currentUser.uid };
+              setWorkspace(selected);
+              navigate(`/workspace/${ws.id}`);
+            }}
 
             style={{
               border:

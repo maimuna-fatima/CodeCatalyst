@@ -144,6 +144,30 @@ function Dashboard() {
                   <li>View output and error logs.</li>
                 </ul>
               </div>
+              {/* Workspace */}
+              <div className="module-card">
+                <h3>Workspace</h3>
+                <p>
+                  Create project-level AI workspaces with persistent memory and
+                  repository intelligence.
+                </p>
+                <ul>
+                  <li>Create a new workspace with project name & GitHub URL.</li>
+                  <li>System automatically detects <span className="highlight">Tech Stack</span>.</li>
+                  <li>AI generates project summary & architecture understanding.</li>
+                </ul>
+              </div>
+              {/* Comments */}
+              <div className="module-card">
+                <h3>Comments</h3>
+                <p>Automatically generate meaningful comments for your existing code.</p>
+                <ul>
+                  <li>Select programming language.</li>
+                  <li>Paste your code snippet.</li>
+                  <li>Click <span className="highlight">Generate Comments</span>.</li>
+                  <li>Receive properly structured inline comments.</li>
+                </ul>
+              </div>
 
             </div>
           </div>

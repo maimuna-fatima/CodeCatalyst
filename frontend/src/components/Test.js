@@ -12,9 +12,15 @@ function Test() {
 
   const [language, setLanguage] = useState("python");
   const [result, setResult] = useState({ output: "", error: "" });
+  const [edgeCases, setEdgeCases] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [edgeLoading, setEdgeLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
 
+  // ==========================
+  // RUN CODE
+  // ==========================
   const handleRun = async () => {
     if (!code.trim()) {
       alert("Please enter code first.");
@@ -23,6 +29,7 @@ function Test() {
 
     try {
       setLoading(true);
+      setShowOutput(true);
 
       const res = await fetch(`${API}/run`, {
         method: "POST",
@@ -37,12 +44,44 @@ function Test() {
 
       const data = await res.json();
       setResult(data);
-
     } catch (error) {
       console.error("Execution error:", error);
       alert("Execution failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ==========================
+  // GENERATE EDGE CASES
+  // ==========================
+  const handleEdgeCases = async () => {
+    if (!code.trim()) {
+      alert("Please enter code first.");
+      return;
+    }
+
+    try {
+      setEdgeLoading(true);
+
+      const res = await fetch(`${API}/edge-cases`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code,
+          language,
+        }),
+      });
+
+      const data = await res.json();
+      setEdgeCases(data);
+    } catch (error) {
+      console.error("Edge case error:", error);
+      alert("Failed to generate edge cases.");
+    } finally {
+      setEdgeLoading(false);
     }
   };
 
@@ -108,11 +147,7 @@ ${result.error || "No errors"}
             <option value="java">Java</option>
             <option value="c">C</option>
             <option value="cpp">C++</option>
-            <option value="rust">Rust</option>
-            <option value="sql">SQL</option>
           </select>
-          {console.log("Language being sent:", language)}
-
         </div>
 
         {/* Input Editor */}
@@ -141,70 +176,117 @@ ${result.error || "No errors"}
           />
         </div>
 
-        <button className="action-btn" onClick={handleRun}>
-          {loading ? "Running..." : "Run Code"}
-        </button>
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: "15px", marginTop: "20px" }}>
+          <button className="action-btn" onClick={handleRun}>
+            {loading ? "Running..." : "Run Code"}
+          </button>
 
-        {/* Output Section */}
-        {(result.output || result.error) && (
-          <div style={{ marginTop: "30px" }}>
+          <button className="action-btn" onClick={handleEdgeCases}>
+            {edgeLoading ? "Generating..." : "Generate Edge Cases"}
+          </button>
+        </div>
+
+        {/* Execution Result */}
+        {showOutput && (
+        <div style={{ marginTop: "40px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
+            }}
+          >
+            <h3>Execution Result</h3>
+
             <div
+              onClick={handleCopy}
               style={{
+                cursor: "pointer",
+                background: "#1e293b",
+                padding: "8px",
+                borderRadius: "8px",
+                border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "10px",
+                justifyContent: "center",
               }}
             >
-              <h3>Execution Result</h3>
-
-              <div
-                onClick={handleCopy}
-                style={{
-                  cursor: "pointer",
-                  background: "#1e293b",
-                  padding: "8px",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "0.2s ease",
-                }}
-              >
-                {copied ? (
-                  <FiCheck size={18} color="#22c55e" />
-                ) : (
-                  <FiCopy size={18} color="#cbd5e1" />
-                )}
-              </div>
+              {copied ? (
+                <FiCheck size={18} color="#22c55e" />
+              ) : (
+                <FiCopy size={18} color="#cbd5e1" />
+              )}
             </div>
+          </div>
+
+          <div
+            style={{
+              borderRadius: "16px",
+              overflow: "hidden",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+            }}
+          >
+            <Editor
+              height="250px"
+              language="plaintext"
+              value={outputText}
+              theme="vs-dark"
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                wordWrap: "on",
+                padding: { top: 16, bottom: 16 },
+              }}
+            />
+          </div>
+        </div>
+        )}
+
+        {/* Edge Case Result */}
+        {edgeCases && edgeCases.edge_test_cases && (
+          <div style={{ marginTop: "40px" }}>
+            <h3>Generated Edge Test Cases</h3>
 
             <div
               style={{
+                background: "#0f172a",
+                padding: "20px",
                 borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+                border: "1px solid #334155",
+                lineHeight: "1.6",
               }}
             >
-              <Editor
-                height="350px"
-                language="plaintext"
-                value={outputText}
-                theme="vs-dark"
-                options={{
-                  readOnly: true,
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  fontFamily: "Fira Code, monospace",
-                  scrollBeyondLastLine: false,
-                  wordWrap: "on",
-                  padding: { top: 16, bottom: 16 },
-                }}
-              />
+              {edgeCases.edge_test_cases.map((test, index) => (
+                <div
+                  key={index}
+                  style={{
+                    marginBottom: "20px",
+                    paddingBottom: "15px",
+                    borderBottom: "1px solid rgba(255,255,255,0.1)"
+                  }}
+                >
+                  <strong>Test Case {index + 1}</strong>
+
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{ color: "#38bdf8" }}>Input → </span>
+                    <pre style={{ margin: 0 }}>
+                      {JSON.stringify(test.input, null, 2)}
+                    </pre>
+                  </div>
+
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{ color: "#22c55e" }}>Expected → </span>
+                    {test.expected_behavior}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
+
 
       </div>
     </div>
