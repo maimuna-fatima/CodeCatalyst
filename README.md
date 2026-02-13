@@ -1,5 +1,8 @@
 # CodeCatalyst
 
+PPT link: https://www.canva.com/design/DAHBATDO_5Y/TdYCGs6mO9H4_hdvxx0OGg/edit?utm_content=DAHBATDO_5Y&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
+## Overview 
 It is an integrated code enhancement platform designed to streamline the software development process by providing testing, debugging, optimization, and AI-powered code improvement within a single interface.
 It allows developers to write, analyze, execute, and enhance code in real-time — reducing manual effort and improving overall code quality.
 
